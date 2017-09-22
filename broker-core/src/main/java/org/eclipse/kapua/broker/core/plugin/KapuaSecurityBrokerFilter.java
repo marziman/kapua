@@ -45,10 +45,13 @@ import org.apache.shiro.ShiroException;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.util.ThreadContext;
 import org.eclipse.kapua.KapuaErrorCode;
+import org.eclipse.kapua.KapuaErrorCodes;
 import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.KapuaIllegalAccessException;
 import org.eclipse.kapua.broker.core.BrokerDomain;
 import org.eclipse.kapua.broker.core.message.MessageConstants;
+import org.eclipse.kapua.broker.core.setting.BrokerSetting;
+import org.eclipse.kapua.broker.core.setting.BrokerSettingKey;
 import org.eclipse.kapua.commons.metric.MetricServiceFactory;
 import org.eclipse.kapua.commons.metric.MetricsService;
 import org.eclipse.kapua.commons.model.query.predicate.AndPredicate;
@@ -107,6 +110,15 @@ import com.codahale.metrics.Timer.Context;
 public class KapuaSecurityBrokerFilter extends BrokerFilter {
 
     private final static Logger logger = LoggerFactory.getLogger(KapuaSecurityBrokerFilter.class);
+
+    private final static String CANNOT_LOAD_BROKER_IP_RESOLVER_ERROR_MSG = "Cannot load broker ip resolver %s. Please check the configuration file!";
+    private final static String BROKER_IP_RESOLVER_CLASS_NAME;
+    static {
+        BrokerSetting config = BrokerSetting.getInstance();
+        BROKER_IP_RESOLVER_CLASS_NAME = config.getString(BrokerSettingKey.BROKER_IP_RESOLVER_CLASS_NAME);
+    }
+
+    protected IpResolver brokerIpResolver;
 
     private final static Map<String, ConnectionId> CONNECTION_MAP = new ConcurrentHashMap<>();
 
@@ -200,6 +212,7 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
         metricPublishMessageSizeNotAllowed = metricsService.getHistogram("security", "publish", "messages", "not_allowed", "size", "bytes");
 
         XmlUtil.setContextProvider(new BrokerJAXBContextProvider());
+        initBrokerIpResolver();
     }
 
     @Override
@@ -359,6 +372,13 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
                     clientId,
                     clientIp);
             DeviceConnection deviceConnection = null;
+
+            final String connectorName = (((TransportConnector) context.getConnector()).getName());
+            final ConnectorDescriptor connectorDescriptor = ConnectorDescriptorProviders.getDescriptor(connectorName);
+            if (connectorDescriptor == null) {
+                throw new IllegalStateException(String.format("Unable to find connector descriptor for connector '%s'", connectorName));
+            }
+
             // 3) check authorization
             DefaultAuthorizationMap authMap = null;
             if (isAdminUser(username)) {
@@ -403,16 +423,16 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
                     DeviceConnectionCreator deviceConnectionCreator = deviceConnectionFactory.newCreator(scopeId);
                     deviceConnectionCreator.setClientId(clientId);
                     deviceConnectionCreator.setClientIp(clientIp);
-                    deviceConnectionCreator.setProtocol("MQTT");
-                    deviceConnectionCreator.setServerIp(null);// TODO to be filled with the proper value
+                    deviceConnectionCreator.setProtocol(connectorDescriptor.getTransportProtocol());
+                    deviceConnectionCreator.setServerIp(brokerIpResolver.getBrokerIpOrHostName());
                     deviceConnectionCreator.setUserId(userId);
                     deviceConnectionCreator.setUserCouplingMode(ConnectionUserCouplingMode.INHERITED);
                     deviceConnectionCreator.setAllowUserChange(false);
                     deviceConnection = KapuaSecurityUtils.doPrivileged(() -> deviceConnectionService.create(deviceConnectionCreator));
                 } else {
                     deviceConnection.setClientIp(clientIp);
-                    deviceConnection.setProtocol("MQTT");
-                    deviceConnection.setServerIp(null);// TODO to be filled with the proper value
+                    deviceConnection.setProtocol(connectorDescriptor.getTransportProtocol());
+                    deviceConnection.setServerIp(brokerIpResolver.getBrokerIpOrHostName());
                     deviceConnection.setUserId(userId);
                     deviceConnection.setStatus(DeviceConnectionStatus.CONNECTED);
                     deviceConnection.setAllowUserChange(false);
@@ -441,11 +461,6 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
             }
             logAuthDestinationToLog(authDestinations);
 
-            final String connectorName = (((TransportConnector) context.getConnector()).getName());
-            final ConnectorDescriptor connectorDescriptor = ConnectorDescriptorProviders.getDescriptor(connectorName);
-            if (connectorDescriptor == null) {
-                throw new IllegalStateException(String.format("Unable to find connector descriptor for connector '%s'", connectorName));
-            }
             KapuaSecurityContext securityCtx = new KapuaSecurityContext(principal,
                     authMap,
                     (deviceConnection != null ? deviceConnection.getId() : null),
@@ -497,6 +512,25 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
             loginShiroLogoutTimeContext.stop();
             loginTotalContext.stop();
         }
+    }
+
+    protected void initBrokerIpResolver() throws KapuaException {
+        logger.info("Initializing broker ip resolver...");
+        // lazy synchronization
+        try {
+            if (!StringUtils.isEmpty(BROKER_IP_RESOLVER_CLASS_NAME)) {
+                logger.info("Initializing broker ip resolver. Instantiate {}...", BROKER_IP_RESOLVER_CLASS_NAME);
+                @SuppressWarnings("unchecked")
+                Class<IpResolver> brokerIpResolverClass = (Class<IpResolver>) Class.forName(BROKER_IP_RESOLVER_CLASS_NAME);
+                brokerIpResolver = brokerIpResolverClass.newInstance();
+            } else {
+                logger.info("Initializing broker ip resolver. Instantiate default resolver...");
+                brokerIpResolver = new DefaultIpResolver();
+            }
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+            throw new KapuaException(KapuaErrorCodes.INTERNAL_ERROR, e, String.format(CANNOT_LOAD_BROKER_IP_RESOLVER_ERROR_MSG, BROKER_IP_RESOLVER_CLASS_NAME));
+        }
+        logger.info("Initializing broker ip resolver... DONE");
     }
 
     private void enforceDeviceConnectionUserBound(Map<String, Object> options, DeviceConnection deviceConnection, KapuaId scopeId, KapuaId userId) throws KapuaException {
@@ -995,7 +1029,6 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
                 admin ? "a" : "_",
                 topic));
         return entry;
-
     }
 
     protected AuthorizationEntry createAuthorizationEntry(List<String> authDestinations, String topic, KapuaPrincipal principal) {
@@ -1010,7 +1043,6 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
         entry.setAdminACLs(adminACLs);
         addAuthDestinationToLog(authDestinations, MessageFormat.format(AclConstants.PERMISSION_LOG, "r", "_", "_", topic));
         return entry;
-
     }
 
     private void addAuthDestinationToLog(List<String> authDestinations, String message) {
