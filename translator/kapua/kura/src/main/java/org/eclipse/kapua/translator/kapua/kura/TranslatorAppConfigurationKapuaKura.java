@@ -27,7 +27,6 @@ import org.eclipse.kapua.commons.configuration.metatype.TiconImpl;
 import org.eclipse.kapua.commons.configuration.metatype.TocdImpl;
 import org.eclipse.kapua.commons.configuration.metatype.ToptionImpl;
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.commons.util.xml.XmlUtil;
 import org.eclipse.kapua.model.config.metatype.KapuaTad;
 import org.eclipse.kapua.model.config.metatype.KapuaTicon;
@@ -58,7 +57,7 @@ import org.eclipse.kapua.translator.exception.TranslatorException;
  */
 public class TranslatorAppConfigurationKapuaKura extends AbstractTranslatorKapuaKura<ConfigurationRequestChannel, ConfigurationRequestPayload, ConfigurationRequestMessage> {
 
-    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getMessageClassifier();
     private static final Map<DeviceConfigurationAppProperties, ConfigurationMetrics> PROPERTIES_DICTIONARY = new HashMap<>();
 
     static {

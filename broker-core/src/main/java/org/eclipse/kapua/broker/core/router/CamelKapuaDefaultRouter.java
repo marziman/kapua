@@ -21,7 +21,6 @@ import org.apache.camel.Properties;
 import org.eclipse.kapua.broker.core.listener.CamelConstants;
 import org.eclipse.kapua.broker.core.message.MessageConstants;
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +36,7 @@ public class CamelKapuaDefaultRouter {
     private final static String REGEX_REPLACEMENT_CHARS = "([\\\\\\.\\)\\]\\}\\(‌​\\[\\{\\*\\+\\?\\^\\$\\|])";
 
     private final static String ESCAPED_CLASSIFIER = "^" +
-            SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER).replaceAll(REGEX_REPLACEMENT_CHARS, "\\\\$0") +
+            SystemSetting.getInstance().getMessageClassifier().replaceAll(REGEX_REPLACEMENT_CHARS, "\\\\$0") +
             "\\.";
     public static final Pattern CONTROL_TOPIC_PATTERN = Pattern.compile(ESCAPED_CLASSIFIER + ".*");
     public static final Pattern CONTROL_TOPIC_BIRTH_PATTERN = Pattern.compile(ESCAPED_CLASSIFIER + "(.*\\.){2}MQTT\\.BIRTH");

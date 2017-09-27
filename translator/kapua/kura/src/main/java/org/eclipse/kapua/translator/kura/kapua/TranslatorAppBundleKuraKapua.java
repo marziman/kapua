@@ -19,7 +19,6 @@ import java.util.Map;
 
 import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.commons.util.xml.XmlUtil;
 import org.eclipse.kapua.locator.KapuaLocator;
 import org.eclipse.kapua.service.device.call.kura.app.BundleMetrics;
@@ -49,7 +48,7 @@ import org.eclipse.kapua.translator.exception.TranslatorException;
  */
 public class TranslatorAppBundleKuraKapua extends AbstractSimpleTranslatorResponseKuraKapua<BundleResponseChannel, BundleResponsePayload, BundleResponseMessage> {
 
-    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getMessageClassifier();
     private static final Map<BundleMetrics, DeviceBundleAppProperties> METRICS_DICTIONARY;
 
     static {

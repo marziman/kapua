@@ -24,7 +24,6 @@ import javax.xml.stream.XMLStreamException;
 
 import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.service.device.call.kura.app.AssetMetrics;
 import org.eclipse.kapua.service.device.call.kura.model.asset.KuraAsset;
 import org.eclipse.kapua.service.device.call.kura.model.asset.KuraAssetChannel;
@@ -53,7 +52,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class TranslatorAppAssetKapuaKura extends AbstractTranslatorKapuaKura<AssetRequestChannel, AssetRequestPayload, AssetRequestMessage> {
 
-    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getMessageClassifier();
     private static final Map<DeviceAssetAppProperties, AssetMetrics> PROPERTIES_DICTIONARY = new HashMap<>();
 
     static {

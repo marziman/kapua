@@ -89,8 +89,8 @@ public class AccountServiceImpl extends AbstractKapuaConfigurableResourceLimited
         }
 
         // check if the account collides with the SystemSettingKey#COMMONS_CONTROL_TOPIC_CLASSIFIER
-        if (!StringUtils.isEmpty(SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER))) {
-            if (SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER).equals(accountCreator.getName())) {
+        if (!StringUtils.isEmpty(SystemSetting.getInstance().getMessageClassifier())) {
+            if (SystemSetting.getInstance().getMessageClassifier().equals(accountCreator.getName())) {
                 throw new KapuaIllegalArgumentException("name", "Reserved account name");// obfuscate this message? or change to something more clear like "the account name collides with some system
                                                                                  // configuration parameter"?
             }

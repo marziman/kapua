@@ -12,7 +12,6 @@
 package org.eclipse.kapua.service.device.call.message.kura.lifecycle;
 
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.service.device.call.message.kura.KuraChannel;
 
 /**
@@ -23,7 +22,7 @@ import org.eclipse.kapua.service.device.call.message.kura.KuraChannel;
  */
 public class KuraBirthChannel extends KuraChannel {
 
-    protected static final String DESTINATION_CONTROL_PREFIX = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    protected static final String DESTINATION_CONTROL_PREFIX = SystemSetting.getInstance().getMessageClassifier();
 
     /**
      * Constructor

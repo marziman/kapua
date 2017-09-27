@@ -174,11 +174,7 @@ public enum SystemSettingKey implements SettingKey {
     /**
      * Maximum allowed retry (due to a {@link EntityExistsException}, so already exists key) on insert operation
      */
-    KAPUA_INSERT_MAX_RETRY("commons.entity.insert.max.retry"),
-    /**
-     * Control message classifier
-     */
-    COMMONS_CONTROL_TOPIC_CLASSIFIER("commons.control_topic.classifier");
+    KAPUA_INSERT_MAX_RETRY("commons.entity.insert.max.retry");
 
     private String key;
 

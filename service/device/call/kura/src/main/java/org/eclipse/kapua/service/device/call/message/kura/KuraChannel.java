@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.service.device.call.message.DeviceChannel;
 
 /**
@@ -26,7 +25,7 @@ import org.eclipse.kapua.service.device.call.message.DeviceChannel;
  */
 public class KuraChannel implements DeviceChannel {
 
-    protected static final String DESTINATION_CONTROL_PREFIX = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    protected static final String DESTINATION_CONTROL_PREFIX = SystemSetting.getInstance().getMessageClassifier();
 
     protected String messageClassification;
     protected String scopeNamespace;

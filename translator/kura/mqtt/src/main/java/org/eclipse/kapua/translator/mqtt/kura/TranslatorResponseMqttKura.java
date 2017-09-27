@@ -13,7 +13,6 @@ package org.eclipse.kapua.translator.mqtt.kura;
 
 import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 import org.eclipse.kapua.service.device.call.message.app.response.kura.KuraResponseChannel;
 import org.eclipse.kapua.service.device.call.message.app.response.kura.KuraResponseMessage;
 import org.eclipse.kapua.service.device.call.message.app.response.kura.KuraResponsePayload;
@@ -32,7 +31,7 @@ import org.eclipse.kapua.transport.message.mqtt.MqttTopic;
  */
 public class TranslatorResponseMqttKura extends Translator<MqttMessage, KuraResponseMessage> {
 
-    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    private static final String CONTROL_MESSAGE_CLASSIFIER = SystemSetting.getInstance().getMessageClassifier();
 
     @Override
     public KuraResponseMessage translate(MqttMessage mqttMessage)

@@ -16,7 +16,6 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 
 import org.eclipse.kapua.commons.setting.system.SystemSetting;
-import org.eclipse.kapua.commons.setting.system.SystemSettingKey;
 
 /**
  * ACL constants
@@ -28,7 +27,7 @@ public class AclConstants {
     private AclConstants() {
     }
 
-    private final static String CONTROL_TOPIC_CLASSIFIER = SystemSetting.getInstance().getString(SystemSettingKey.COMMONS_CONTROL_TOPIC_CLASSIFIER);
+    private final static String CONTROL_TOPIC_CLASSIFIER = SystemSetting.getInstance().getMessageClassifier();
     public static final String VT_TOPIC_PREFIX_TEMPLATE = "VirtualTopic.{0}";
     public static final String VT_TOPIC_PREFIX = "VirtualTopic.";
 
