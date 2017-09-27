@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2011, 2016 Eurotech and/or its affiliates and others
+ * Copyright (c) 2011, 2017 Eurotech and/or its affiliates and others
  *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -174,7 +174,11 @@ public enum SystemSettingKey implements SettingKey {
     /**
      * Maximum allowed retry (due to a {@link EntityExistsException}, so already exists key) on insert operation
      */
-    KAPUA_INSERT_MAX_RETRY("commons.entity.insert.max.retry");
+    KAPUA_INSERT_MAX_RETRY("commons.entity.insert.max.retry"),
+    /**
+     * Control message classifier
+     */
+    COMMONS_CONTROL_TOPIC_CLASSIFIER("commons.control_topic.classifier");
 
     private String key;
 
