@@ -50,6 +50,12 @@ import org.eclipse.kapua.KapuaException;
 import org.eclipse.kapua.KapuaIllegalAccessException;
 import org.eclipse.kapua.broker.core.BrokerDomain;
 import org.eclipse.kapua.broker.core.message.MessageConstants;
+import org.eclipse.kapua.broker.core.message.system.DefaultSystemMessageCreator;
+import org.eclipse.kapua.broker.core.message.system.SystemMessageCreator;
+import org.eclipse.kapua.broker.core.message.system.SystemMessageCreator.SystemMessageType;
+import org.eclipse.kapua.broker.core.pool.JmsAssistantProducerPool;
+import org.eclipse.kapua.broker.core.pool.JmsAssistantProducerPool.DESTINATIONS;
+import org.eclipse.kapua.broker.core.pool.JmsAssistantProducerWrapper;
 import org.eclipse.kapua.broker.core.setting.BrokerSetting;
 import org.eclipse.kapua.broker.core.setting.BrokerSettingKey;
 import org.eclipse.kapua.commons.metric.MetricServiceFactory;
@@ -111,14 +117,19 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
 
     private final static Logger logger = LoggerFactory.getLogger(KapuaSecurityBrokerFilter.class);
 
+    private final static String CONNECT_MESSAGE_TOPIC_PATTERN = "%s.%s.%s.MQTT.CONNECT";
     private final static String CANNOT_LOAD_BROKER_IP_RESOLVER_ERROR_MSG = "Cannot load broker ip resolver %s. Please check the configuration file!";
+    private final static String CANNOT_LOAD_SYSTEM_MESSAGE_CREATOR_CLASS_NAME_ERROR_MSG = "Cannot load system message creator %s. Please check the configuration file!";
     private final static String BROKER_IP_RESOLVER_CLASS_NAME;
+    private final static String SYSTEM_MESSAGE_CREATOR_CLASS_NAME;
     static {
         BrokerSetting config = BrokerSetting.getInstance();
         BROKER_IP_RESOLVER_CLASS_NAME = config.getString(BrokerSettingKey.BROKER_IP_RESOLVER_CLASS_NAME);
+        SYSTEM_MESSAGE_CREATOR_CLASS_NAME = config.getString(BrokerSettingKey.SYSTEM_MESSAGE_CREATOR_CLASS_NAME);
     }
 
     protected IpResolver brokerIpResolver;
+    protected SystemMessageCreator systemMessageCreator;
 
     private final static Map<String, ConnectionId> CONNECTION_MAP = new ConcurrentHashMap<>();
 
@@ -213,6 +224,7 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
 
         XmlUtil.setContextProvider(new BrokerJAXBContextProvider());
         initBrokerIpResolver();
+        initSystemMessageCreator();
     }
 
     @Override
@@ -310,12 +322,12 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
         ThreadContext.unbindSubject();
 
         Context loginTotalContext = metricLoginAddConnectionTime.time();
-
         String username = info.getUserName();
         String password = info.getPassword();
         String clientId = info.getClientId();
         String clientIp = info.getClientIp();
         ConnectionId connectionId = info.getConnectionId();
+        KapuaBrokerContextContainer kbcc = new KapuaBrokerContextContainer(username, clientId, clientIp);
 
         List<String> authDestinations = null;
         if (logger.isDebugEnabled()) {
@@ -355,6 +367,7 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
             }
 
             String accountName = account.getName();
+            kbcc.setAccountName(accountName);
             loginShiroLoginTimeContext.stop();
 
             // if a user acts as a child MOVED INSIDE KapuaAuthorizingRealm otherwise through REST API and console this @accountName won't work
@@ -454,9 +467,7 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
                 loginFindDevTimeContext.stop();
 
                 loginNormalUserTimeContext.stop();
-                Context loginSendLogingUpdateMsgTimeContex = metricLoginSendLoginUpdateMsgTime.time();
-
-                loginSendLogingUpdateMsgTimeContex.stop();
+                sendConnectMessage(kbcc);
                 metricClientConnectedClient.inc();
             }
             logAuthDestinationToLog(authDestinations);
@@ -531,6 +542,25 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
             throw new KapuaException(KapuaErrorCodes.INTERNAL_ERROR, e, String.format(CANNOT_LOAD_BROKER_IP_RESOLVER_ERROR_MSG, BROKER_IP_RESOLVER_CLASS_NAME));
         }
         logger.info("Initializing broker ip resolver... DONE");
+    }
+
+    protected void initSystemMessageCreator() throws KapuaException {
+        logger.info("Initializing system message creator...");
+        // lazy synchronization
+        try {
+            if (!StringUtils.isEmpty(SYSTEM_MESSAGE_CREATOR_CLASS_NAME)) {
+                logger.info("Initializing system message creator. Instantiate {}...", SYSTEM_MESSAGE_CREATOR_CLASS_NAME);
+                @SuppressWarnings("unchecked")
+                Class<SystemMessageCreator> systemMessageCreatorClass = (Class<SystemMessageCreator>) Class.forName(SYSTEM_MESSAGE_CREATOR_CLASS_NAME);
+                systemMessageCreator = systemMessageCreatorClass.newInstance();
+            } else {
+                logger.info("Initializing system message creator. Instantiate default resolver...");
+                systemMessageCreator = new DefaultSystemMessageCreator();
+            }
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+            throw new KapuaException(KapuaErrorCodes.INTERNAL_ERROR, e, String.format(CANNOT_LOAD_SYSTEM_MESSAGE_CREATOR_CLASS_NAME_ERROR_MSG, SYSTEM_MESSAGE_CREATOR_CLASS_NAME));
+        }
+        logger.info("Initializing system message creator... DONE");
     }
 
     private void enforceDeviceConnectionUserBound(Map<String, Object> options, DeviceConnection deviceConnection, KapuaId scopeId, KapuaId userId) throws KapuaException {
@@ -608,6 +638,28 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
             throw new SecurityException("Cannot find default Device-User coupling mode in the registry service configuration! (deviceConnectionUserCouplingDefaultMode");
             // TODO manage the error message. is it better to throw a more specific exception or keep it obfuscated for security reason?
         }
+    }
+
+    protected void sendConnectMessage(KapuaBrokerContextContainer kbcc) {
+        Context loginSendLogingUpdateMsgTimeContex = metricLoginSendLoginUpdateMsgTime.time();
+        String message = systemMessageCreator.createMessage(SystemMessageType.CONNECT, kbcc);
+        JmsAssistantProducerWrapper producerWrapper = null;
+        try {
+            producerWrapper = JmsAssistantProducerPool.getIOnstance(DESTINATIONS.NO_DESTINATION).borrowObject();
+            producerWrapper.send(
+                    String.format(CONNECT_MESSAGE_TOPIC_PATTERN,
+                            SystemSetting.getInstance().getMessageClassifier(),
+                            kbcc.getAccountName(),
+                            kbcc.getClientId()),
+                    message);
+        } catch (Exception e) {
+            logger.error("Exception sending the connect message: {}", e.getMessage(), e);
+        } finally {
+            if (producerWrapper != null) {
+                JmsAssistantProducerPool.getIOnstance(DESTINATIONS.NO_DESTINATION).returnObject(producerWrapper);
+            }
+        }
+        loginSendLogingUpdateMsgTimeContex.stop();
     }
 
     @Override
@@ -885,7 +937,6 @@ public class KapuaSecurityBrokerFilter extends BrokerFilter {
         dme.addAll(createAuthorizationEntries(authDestinations, MessageFormat.format(AclConstants.ACL_CTRL_ACC_CLI, accountName, clientId),
                 principal, clientId, fullClientId, true, false, false));// (topic, principal, read, write, admin)
 
-        // FIXME: check if is correct "$EDC.{0}.>" instead of ">"
         dme.addAll(createAuthorizationEntries(authDestinations, MessageFormat.format(AclConstants.ACL_CTRL_ACC, accountName),
                 principal, clientId, fullClientId, false, false, true));// (topic, principal, read, write, admin)
 

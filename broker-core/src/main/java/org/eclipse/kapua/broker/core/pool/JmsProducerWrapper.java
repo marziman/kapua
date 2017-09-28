@@ -17,9 +17,6 @@ import javax.jms.MessageProducer;
 import javax.jms.Session;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
-import org.eclipse.kapua.KapuaErrorCodes;
-import org.eclipse.kapua.KapuaException;
-import org.eclipse.kapua.broker.core.message.CamelKapuaMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,18 +78,6 @@ public abstract class JmsProducerWrapper {
     protected void finalize() throws Throwable {
         close();
         super.finalize();
-    }
-
-    /**
-     * Send a message {@link CamelKapuaMessage}
-     * 
-     * @param message
-     * @throws JMSException
-     * @throws KapuaException
-     */
-    public void sendRawMessage(CamelKapuaMessage<?> message) throws JMSException, KapuaException {
-        logger.error("Feature not implemented yet!");
-        throw new KapuaException(KapuaErrorCodes.INTERNAL_ERROR);
     }
 
 }

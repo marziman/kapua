@@ -33,7 +33,11 @@ public enum BrokerSettingKey implements SettingKey {
     /**
      * Broker IP used by the default resolver.
      */
-    BROKER_IP("broker.ip");
+    BROKER_IP("broker.ip"),
+    /**
+     * System message creator implementation.
+     */
+    SYSTEM_MESSAGE_CREATOR_CLASS_NAME("broker.system.message_creator_class_name");
 
     private String key;
 
